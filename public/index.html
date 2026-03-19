@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot to Excel — AI Table Extractor</title>
+    <meta name="description"
+        content="Upload a screenshot of any table and instantly extract it to a downloadable Excel file using Google Gemini AI.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <main class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                        <line x1="3" y1="15" x2="21" y2="15" />
+                        <line x1="9" y1="3" x2="9" y2="21" />
+                        <line x1="15" y1="3" x2="15" y2="21" />
+                    </svg>
+                </div>
+                <h1>Screenshot<span class="accent">2</span>Excel</h1>
+            </div>
+            <p class="subtitle">Extract tabular data from financial reports into Excel</p>
+        </header>
+
+        <!-- Upload Area -->
+        <section class="card upload-card" id="upload-card">
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-content" id="dropzone-content">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    </div>
+                    <h3>Drag & drop your screenshot here</h3>
+                    <p>or <span class="browse-link">browse files</span></p>
+                    <p class="file-hint">Supports PNG, JPG, WebP, BMP, GIF</p>
+                </div>
+                <input type="file" id="file-input" accept="image/*" hidden>
+            </div>
+        </section>
+
+        <!-- Preview Image -->
+        <section class="card preview-card hidden" id="preview-card">
+            <div class="preview-header">
+                <h2>📷 Uploaded Image</h2>
+                <button class="btn btn-ghost" id="clear-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    Clear
+                </button>
+            </div>
+            <div class="image-preview-wrapper">
+                <img id="image-preview" alt="Uploaded screenshot preview">
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" id="preview-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                        <line x1="9" y1="3" x2="9" y2="21" />
+                    </svg>
+                    Preview Data
+                </button>
+                <button class="btn btn-primary" id="download-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download Excel
+                </button>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <section class="card loading-card hidden" id="loading-card">
+            <div class="spinner"></div>
+            <p class="loading-text">Analyzing your screenshot with AI…</p>
+            <p class="loading-subtext">This may take a few seconds</p>
+        </section>
+
+        <!-- Data Preview Table -->
+        <section class="card table-card hidden" id="table-card">
+            <div class="table-header">
+                <h2>📊 Extracted Data</h2>
+                <span class="row-count" id="row-count"></span>
+            </div>
+            <div class="table-wrapper" id="table-wrapper">
+                <!-- Dynamic table injected here -->
+            </div>
+        </section>
+
+        <!-- Toast -->
+        <div class="toast hidden" id="toast">
+            <span class="toast-icon">⚠️</span>
+            <span class="toast-msg" id="toast-msg"></span>
+        </div>
+    </main>
+
+
+
+    <script src="/app.js"></script>
+</body>
+
+</html>
