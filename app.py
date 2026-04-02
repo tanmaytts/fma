@@ -234,7 +234,18 @@ def _repair_json(text):
 
 
 def create_excel(data):
-    """Convert a list of dicts into a styled Excel workbook."""
+    """Convert a list of dicts into a styled Excel workbook.
+
+    Formatting matches Sample.xlsx:
+    - Calibri 11pt throughout
+    - Dark blue (#1F4E78) column headers with white bold text
+    - Light blue (#DDEBF7) section header rows with bold text
+    - Bold + top thin border for subtotals/totals
+    - Indent = 1 for regular line items
+    - Number format: #,##0;(#,##0);"-" for numeric columns
+    - Numeric values colored dark blue (#1F4E78)
+    - No cell borders on regular data rows
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Extracted Data"
@@ -242,50 +253,162 @@ def create_excel(data):
     if not data:
         return wb
 
-    headers = list(data[0].keys())
+    # Determine which columns are in the data
+    all_keys = list(data[0].keys())
 
-    # --- Header style ---
-    header_font = Font(name="Inter", bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
-    header_align = Alignment(horizontal="center", vertical="center")
-    thin_border = Border(
-        left=Side(style="thin", color="E5E7EB"),
-        right=Side(style="thin", color="E5E7EB"),
-        top=Side(style="thin", color="E5E7EB"),
-        bottom=Side(style="thin", color="E5E7EB"),
-    )
+    # Separate metadata keys from value (period) columns
+    meta_keys = []
+    period_keys = []
+    for key in all_keys:
+        if key in ("Section", "Level", "Line Item", "Notes"):
+            meta_keys.append(key)
+        else:
+            period_keys.append(key)
 
-    # Write headers
-    for col_idx, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_align
-        cell.border = thin_border
+    # We only write: Line Item, Notes, then period columns
+    # (Section and Level are used for formatting but not shown as columns)
+    display_cols = []
+    if "Line Item" in meta_keys:
+        display_cols.append("Line Item")
+    if "Notes" in meta_keys:
+        display_cols.append("Notes")
+    display_cols.extend(period_keys)
 
-    # --- Data style ---
-    data_font = Font(name="Inter", size=10)
-    data_align = Alignment(horizontal="left", vertical="center")
-    alt_fill = PatternFill(start_color="F9FAFB", end_color="F9FAFB", fill_type="solid")
+    # ── Styles ──────────────────────────────────────────────
+    # Column header row: dark blue background, white bold text
+    col_header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    col_header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
 
-    for row_idx, row_data in enumerate(data, 2):
-        for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=row_data.get(header, ""))
-            cell.font = data_font
-            cell.alignment = data_align
-            cell.border = thin_border
-            if row_idx % 2 == 0:
-                cell.fill = alt_fill
+    # Section header rows (e.g. "Balance Sheet", "Profit & Loss"): light blue bg, bold
+    section_fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+    section_font = Font(name="Calibri", size=11, bold=True)
 
-    # Auto-fit column widths
-    for col_idx, header in enumerate(headers, 1):
-        max_len = len(str(header))
-        for row_data in data:
-            val = str(row_data.get(header, ""))
-            max_len = max(max_len, len(val))
-        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 4, 50)
+    # Category headers (e.g. "ASSETS", "Non-current Assets"): bold, no fill
+    category_font = Font(name="Calibri", size=11, bold=True)
+
+    # Subtotal/total rows: bold text, thin top border
+    subtotal_font = Font(name="Calibri", size=11, bold=True)
+    top_border = Border(top=Side(style="thin"))
+
+    # Regular data items
+    item_font = Font(name="Calibri", size=11)
+    item_align_indent = Alignment(horizontal="left", indent=1)
+    item_align_normal = Alignment(horizontal="left")
+
+    # Numeric values: dark blue color, custom number format
+    num_font = Font(name="Calibri", size=11, color="1F4E78")
+    num_font_bold = Font(name="Calibri", size=11, color="1F4E78", bold=True)
+    num_format = '#,##0;\\(#,##0\\);"-"'
+
+    # ── Column header row ───────────────────────────────────
+    for col_idx, col_name in enumerate(display_cols, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = col_header_font
+        cell.fill = col_header_fill
+
+    # ── Data rows ───────────────────────────────────────────
+    current_row = 2  # start after header
+
+    for row_data in data:
+        level = row_data.get("Level", "item").lower()
+        section = row_data.get("Section", "")
+        line_item = row_data.get("Line Item", "")
+
+        # -- Write the Line Item cell --
+        li_col = 1 if "Line Item" in display_cols else None
+        if li_col is not None:
+            cell = ws.cell(row=current_row, column=li_col, value=line_item)
+
+            if level == "header":
+                # Check if this is a major section header (like "Balance Sheet")
+                # or a category header (like "ASSETS", "Non-current Assets")
+                cell.font = category_font
+            elif level in ("subtotal", "total"):
+                cell.font = subtotal_font
+                cell.border = top_border
+            else:
+                # Regular item — indented
+                cell.font = item_font
+                cell.alignment = item_align_indent
+
+        # -- Write the Notes cell --
+        notes_col = display_cols.index("Notes") + 1 if "Notes" in display_cols else None
+        if notes_col is not None:
+            notes_val = row_data.get("Notes", "")
+            cell = ws.cell(row=current_row, column=notes_col, value=notes_val)
+            cell.font = item_font
+            if level in ("subtotal", "total"):
+                cell.border = top_border
+
+        # -- Write period/numeric columns --
+        for period_key in period_keys:
+            col_idx = display_cols.index(period_key) + 1
+            raw_val = row_data.get(period_key, "")
+
+            # Try to convert to a number
+            numeric_val = _to_number(raw_val)
+
+            cell = ws.cell(row=current_row, column=col_idx)
+
+            if numeric_val is not None:
+                cell.value = numeric_val
+                cell.number_format = num_format
+                if level in ("subtotal", "total"):
+                    cell.font = num_font_bold
+                    cell.border = top_border
+                else:
+                    cell.font = num_font
+            else:
+                cell.value = raw_val if raw_val else ""
+                if level in ("subtotal", "total"):
+                    cell.font = subtotal_font
+                    cell.border = top_border
+                elif level == "header":
+                    cell.font = category_font
+
+        # -- Apply section fill for "header" level rows that look like section titles --
+        if level == "header" and line_item and any(
+            keyword in line_item.lower()
+            for keyword in ("balance sheet", "profit", "loss", "cash flow", "statement")
+        ):
+            for col_idx in range(1, len(display_cols) + 1):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.fill = section_fill
+                cell.font = section_font
+
+        current_row += 1
+
+    # ── Column widths ───────────────────────────────────────
+    for col_idx, col_name in enumerate(display_cols, 1):
+        if col_name == "Line Item":
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 45
+        elif col_name == "Notes":
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 8
+        else:
+            # Period columns — fit to header length + padding
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = max(len(col_name) + 4, 18)
 
     return wb
+
+
+def _to_number(val):
+    """Try to convert a string value to a float. Returns None if not numeric."""
+    if val is None or val == "":
+        return None
+    if isinstance(val, (int, float)):
+        return val
+    val = str(val).strip()
+    # Handle parenthesized negatives: (1234) → -1234
+    if val.startswith("(") and val.endswith(")"):
+        val = "-" + val[1:-1]
+    # Remove commas
+    val = val.replace(",", "")
+    # Remove currency symbols
+    val = val.replace("₹", "").replace("$", "").replace("€", "").strip()
+    try:
+        return float(val)
+    except ValueError:
+        return None
 
 
 # ─── Routes ───────────────────────────────────────────────────────────
