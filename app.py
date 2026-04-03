@@ -159,7 +159,7 @@ def extract_table_from_image(image_path, mime_type):
             }
         ],
         temperature=1e-8,
-        max_output_tokens=4096,
+        max_output_tokens=8192,
     )
 
     text = response.output_text
@@ -298,7 +298,7 @@ def create_excel(data):
     # Numeric values: dark blue color, custom number format
     num_font = Font(name="Calibri", size=11, color="1F4E78")
     num_font_bold = Font(name="Calibri", size=11, color="1F4E78", bold=True)
-    num_format = '#,##0;\\(#,##0\\);"-"'
+    num_format = '#,##0.00;\\(#,##0.00\\);"-"'
 
     # ── Column header row ───────────────────────────────────
     for col_idx, col_name in enumerate(display_cols, 1):
