@@ -1,0 +1,10 @@
+Demo/
+Sample.xlsx
+*.pdf
+venv/
+__pycache__/
+*.pyc
+.env
+uploads/
+node_modules/
+.DS_Store

@@ -20,10 +20,10 @@ app.post("/convert", upload.single("image"), async (req, res) => {
     const base64Image = imageBuffer.toString("base64");
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash", // fast + free tier
+      model: "gemini-1.5-flash", // Fast model with generous free-tier limits
     });
 
-    // 🧠 GEMINI CALL (IMAGE → JSON)
+    // Send the image to Gemini and request structured JSON output
     const result = await model.generateContent([
       {
         text: `
@@ -54,7 +54,7 @@ ONLY JSON.
 
     let text = result.response.text();
 
-    // 🧹 Clean response
+    // Strip markdown code fences from the model response
     text = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -62,7 +62,7 @@ ONLY JSON.
 
     const data = JSON.parse(text);
 
-    // 📊 JSON → Excel
+    // Convert the parsed JSON rows into an Excel workbook
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
 

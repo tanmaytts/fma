@@ -14,7 +14,10 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="public", static_url_path="")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PUBLIC_DIR = os.path.join(BASE_DIR, "public")
+
+app = Flask(__name__, static_folder=PUBLIC_DIR, static_url_path="")
 CORS(app)
 
 # Configure Groq via the OpenAI-compatible API
@@ -34,7 +37,9 @@ VISION_MODELS = {
     "meta-llama/llama-4-maverick-17b-128e-instruct",
 }
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+# On serverless platforms (e.g. Vercel) the project dir is read-only; only the
+# system temp dir is writable. tempfile.gettempdir() resolves to /tmp there.
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "fma_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "bmp", "gif"}
@@ -415,7 +420,7 @@ def _to_number(val):
 
 @app.route("/")
 def index():
-    return send_from_directory("public", "index.html")
+    return send_from_directory(PUBLIC_DIR, "index.html")
 
 
 @app.route("/preview", methods=["POST"])
