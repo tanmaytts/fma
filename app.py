@@ -31,7 +31,7 @@ client = OpenAI(
 )
 
 # Default to Groq-hosted Llama 4 Scout, a vision-capable model with broader availability.
-MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-3.3-70b-versatile")
 VISION_MODELS = {
     "llama-3.3-70b-versatile",
     "meta-llama/llama-4-scout-17b-16e-instruct",
