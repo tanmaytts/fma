@@ -162,7 +162,9 @@ def encode_image_under_limit(image_path):
         else:
             img = img.convert("RGB")
 
-    max_dim = 1800   # longest side in px; still ample for table-text legibility
+    max_dim = 1280   # longest side in px. Vision tokens scale with pixel area,
+                     # not file size, so this cap (not the byte target below) is
+                     # what keeps image tokens within Groq's free-tier TPM limit.
     quality = 85
     b64 = ""
 
@@ -218,13 +220,24 @@ def extract_table_from_image(image_path, mime_type):
                 }
             ],
             temperature=1e-8,
-            max_completion_tokens=8192,
+            # Groq free tier caps qwen3.6-27b at 8000 tokens/minute, counting
+            # reserved output tokens. Input (prompt + image) is ~2-3k, so keep
+            # output well under the remainder or the request is rejected (413
+            # rate_limit_exceeded). ~4000 leaves room for large table JSON.
+            max_completion_tokens=4000,
         )
     except Exception as e:
         # Surface Groq's actual error body (the HTTP status alone hides which
         # limit was hit — image size vs. total request vs. model constraint).
         body = getattr(getattr(e, "response", None), "text", None)
         print(f"[groq] request failed: {type(e).__name__}: {e} | body={body}")
+        if "rate_limit_exceeded" in f"{e}{body}":
+            raise RuntimeError(
+                "Groq rejected the request for exceeding the free-tier "
+                "tokens-per-minute limit (8000 TPM for qwen3.6-27b). Try a "
+                "smaller/less dense screenshot, wait a minute between requests, "
+                "or upgrade the Groq account to the Dev tier for higher limits."
+            ) from e
         raise
 
     text = response.choices[0].message.content
