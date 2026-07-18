@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
+from PIL import Image, ImageOps
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -141,16 +142,61 @@ def get_mime(filename):
     return MIME_MAP.get(ext, "image/png")
 
 
+def encode_image_under_limit(image_path):
+    """Return (base64_str, mime_type), downscaling/compressing as needed so the
+    base64 payload stays under Groq's 4MB vision limit (else the API returns
+    413). Re-encodes to JPEG, so the returned mime_type is always image/jpeg.
+    """
+    # Groq caps base64-encoded image requests at 4MB. Target the base64 string
+    # length with margin for the data-URI prefix and the rest of the JSON body.
+    max_b64_chars = 3_600_000
+
+    img = Image.open(image_path)
+    img = ImageOps.exif_transpose(img)  # respect orientation metadata
+    if img.mode != "RGB":
+        # Flatten any alpha onto white so JPEG (no alpha channel) is correct.
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGBA")
+            bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            img = Image.alpha_composite(bg, img).convert("RGB")
+        else:
+            img = img.convert("RGB")
+
+    max_dim = 2000   # longest side in px; ample for table-text legibility
+    quality = 85
+    b64 = ""
+
+    for _ in range(12):
+        work = img
+        if max(work.size) > max_dim:
+            work = img.copy()
+            work.thumbnail((max_dim, max_dim), Image.LANCZOS)
+
+        buf = BytesIO()
+        work.save(buf, format="JPEG", quality=quality, optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+        if len(b64) <= max_b64_chars:
+            return b64, "image/jpeg"
+
+        # Still too large: shrink dimensions first, then ease off quality.
+        if max_dim > 1000:
+            max_dim = int(max_dim * 0.85)
+        else:
+            quality = max(40, quality - 10)
+
+    return b64, "image/jpeg"
+
+
 def extract_table_from_image(image_path, mime_type):
     """Send image to Groq and extract table data as JSON."""
-    with open(image_path, "rb") as f:
-        image_data = base64.b64encode(f.read()).decode("utf-8")
-
     if MODEL not in VISION_MODELS:
         raise RuntimeError(
             f"Configured model '{MODEL}' does not support image input on Groq. "
             "Set GROQ_MODEL to a vision-capable Groq model for screenshot extraction."
         )
+
+    image_data, mime_type = encode_image_under_limit(image_path)
 
     response = client.chat.completions.create(
         model=MODEL,
