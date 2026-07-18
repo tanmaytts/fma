@@ -30,14 +30,15 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
 )
 
-# Default to Groq-hosted Llama 4 Scout, a vision-capable model with broader availability.
-MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-# Only genuinely vision-capable Groq models belong here. The llama-3.x text
-# models (llama-3.3-70b-versatile, llama-3.1-8b-instant) do NOT accept image
-# input and must not be listed, or screenshot extraction will fail.
+# Default to Groq's current multimodal model. The Llama 4 (scout/maverick) and
+# llama-3.x models were deprecated/retired by Groq (announced 2026-06-17), so
+# they 404 with "model_not_found". qwen/qwen3.6-27b is Groq's documented
+# vision-capable migration target. Note: Groq serves it as a preview model.
+MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
+# Only genuinely vision-capable Groq models belong here. Text-only models
+# (gpt-oss, the retired llama-3.x chat models) do NOT accept image input.
 VISION_MODELS = {
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "qwen/qwen3.6-27b",
 }
 
 # On serverless platforms (e.g. Vercel) the project dir is read-only; only the
