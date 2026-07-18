@@ -33,9 +33,10 @@ client = OpenAI(
 # Default to Groq-hosted Llama 4 Scout, a vision-capable model with broader availability.
 MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 VISION_MODELS = {
+    "llama-3.3-70b-versatile",
     "meta-llama/llama-4-scout-17b-16e-instruct",
     "llama-3.1-8b-instant",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct"
 }
 
 # On serverless platforms (e.g. Vercel) the project dir is read-only; only the
