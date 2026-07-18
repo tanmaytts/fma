@@ -34,6 +34,7 @@ client = OpenAI(
 MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 VISION_MODELS = {
     "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.1-8b-instant",
     "meta-llama/llama-4-maverick-17b-128e-instruct",
 }
 
