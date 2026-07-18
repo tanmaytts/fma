@@ -147,9 +147,9 @@ def encode_image_under_limit(image_path):
     base64 payload stays under Groq's 4MB vision limit (else the API returns
     413). Re-encodes to JPEG, so the returned mime_type is always image/jpeg.
     """
-    # Groq caps base64-encoded image requests at 4MB. Target the base64 string
-    # length with margin for the data-URI prefix and the rest of the JSON body.
-    max_b64_chars = 3_600_000
+    # Groq documents a 4MB cap on base64 image requests, but preview models on
+    # the free tier can enforce a tighter limit, so target well below it.
+    max_b64_chars = 2_500_000
 
     img = Image.open(image_path)
     img = ImageOps.exif_transpose(img)  # respect orientation metadata
@@ -162,7 +162,7 @@ def encode_image_under_limit(image_path):
         else:
             img = img.convert("RGB")
 
-    max_dim = 2000   # longest side in px; ample for table-text legibility
+    max_dim = 1800   # longest side in px; still ample for table-text legibility
     quality = 85
     b64 = ""
 
@@ -197,27 +197,35 @@ def extract_table_from_image(image_path, mime_type):
         )
 
     image_data, mime_type = encode_image_under_limit(image_path)
+    print(f"[groq] model={MODEL} b64_len={len(image_data)} mime={mime_type}")
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": EXTRACTION_PROMPT},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{mime_type};base64,{image_data}",
-                            "detail": "auto",
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": EXTRACTION_PROMPT},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{image_data}",
+                                "detail": "auto",
+                            },
                         },
-                    },
-                ],
-            }
-        ],
-        temperature=1e-8,
-        max_completion_tokens=8192,
-    )
+                    ],
+                }
+            ],
+            temperature=1e-8,
+            max_completion_tokens=8192,
+        )
+    except Exception as e:
+        # Surface Groq's actual error body (the HTTP status alone hides which
+        # limit was hit — image size vs. total request vs. model constraint).
+        body = getattr(getattr(e, "response", None), "text", None)
+        print(f"[groq] request failed: {type(e).__name__}: {e} | body={body}")
+        raise
 
     text = response.choices[0].message.content
     print(f"--- RAW GROQ RESPONSE ---\n{text}\n--- END ---")
