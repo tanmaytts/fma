@@ -31,12 +31,13 @@ client = OpenAI(
 )
 
 # Default to Groq-hosted Llama 4 Scout, a vision-capable model with broader availability.
-MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-3.3-70b-versatile")
+MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+# Only genuinely vision-capable Groq models belong here. The llama-3.x text
+# models (llama-3.3-70b-versatile, llama-3.1-8b-instant) do NOT accept image
+# input and must not be listed, or screenshot extraction will fail.
 VISION_MODELS = {
-    "llama-3.3-70b-versatile",
     "meta-llama/llama-4-scout-17b-16e-instruct",
-    "llama-3.1-8b-instant",
-    "meta-llama/llama-4-maverick-17b-128e-instruct"
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
 }
 
 # On serverless platforms (e.g. Vercel) the project dir is read-only; only the
@@ -150,26 +151,28 @@ def extract_table_from_image(image_path, mime_type):
             "Set GROQ_MODEL to a vision-capable Groq model for screenshot extraction."
         )
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model=MODEL,
-        input=[
+        messages=[
             {
                 "role": "user",
                 "content": [
-                    {"type": "input_text", "text": EXTRACTION_PROMPT},
+                    {"type": "text", "text": EXTRACTION_PROMPT},
                     {
-                        "type": "input_image",
-                        "detail": "auto",
-                        "image_url": f"data:{mime_type};base64,{image_data}",
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{image_data}",
+                            "detail": "auto",
+                        },
                     },
                 ],
             }
         ],
         temperature=1e-8,
-        max_output_tokens=8192,
+        max_completion_tokens=8192,
     )
 
-    text = response.output_text
+    text = response.choices[0].message.content
     print(f"--- RAW GROQ RESPONSE ---\n{text}\n--- END ---")
 
     return parse_json_from_text(text)
